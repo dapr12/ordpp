@@ -1,4 +1,5 @@
 # ordpp
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23186811.svg)](https://doi.org/10.5281/zenodo.23186811)
 
 Projection pursuit with monotone scoring for ordered categorical (ordinal) data in R,
 together with the replication materials for the article
