@@ -1,0 +1,25 @@
+\documentclass[11pt,a4paper]{letter}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+\signature{Diego Andres Perez Ruiz}
+\address{Department of Social Statistics\\School of Social Sciences\\University of Manchester\\Manchester, United Kingdom\\\href{mailto:diego.perezruiz@manchester.ac.uk}{diego.perezruiz@manchester.ac.uk}}
+\begin{document}
+\begin{letter}{The Editor-in-Chief\\The R Journal}
+\opening{Dear Editor,}
+
+I submit the article ``ordpp: Projection Pursuit with Monotone Scoring for Ordinal Data in R'' for consideration as a contributed research article in \emph{The R Journal}.
+
+Ordered categorical items are central to survey research and psychometrics, yet they are usually analysed with equally spaced numerical codes. The article presents the R package \textbf{ordpp}, which treats the numerical spacing of categories as part of an exploratory analysis. It jointly estimates monotone category scores and a projection direction by maximizing a characteristic-function discrepancy from item independence with the observed marginals. The package then freezes the resulting measurement map and evaluates it on independent data, including a permutation test that is valid in finite samples and requires no refitting. A wrapper allows score maps produced by other packages, such as \textbf{Gifi}, \textbf{ordPens} and \textbf{psych}, to be evaluated with exactly the same tools.
+
+I believe the article suits the journal for three reasons. First, it documents a complete, openly available R workflow (fit, inspect, validate, test, check stability, predict) rather than a method alone. Second, it relates the package carefully to existing R software for optimal scaling, latent-response models, projection pursuit and distance covariance, and compares it with several of these packages on equal terms. Third, it reports its limitations candidly. In simulations, principal-component directions gave a more powerful held-out test under weak dependence than the pursued directions, and a larger discrepancy did not imply better recovery of a latent factor. The article therefore positions \textbf{ordpp} as a descriptive tool and shows users how to test along other directions when detection is the goal.
+
+The article includes three short propositions (characterization of independence, a low-frequency expansion of the index, and finite-sample validity of the held-out test), an application to the openly available SAPA personality data in \textbf{psychTools}, and a simulation study of size, power and latent recovery with Monte Carlo standard errors.
+
+The package (version 0.1.0) passes \texttt{R CMD check -{}-as-cran} on macOS and on win-builder (R-devel) with only the ``new submission'' note, and it has been submitted to CRAN. The source code and replication materials are available at \url{https://github.com/dapr12/ordpp} and archived at \url{https://doi.org/10.5281/zenodo.23186811}. The script \texttt{scripts/reproduce\_article.R} regenerates every number, table and figure in the article in a few minutes from the saved outputs of the long-running simulations; the complete computations can be re-run with \texttt{FULL=1}. One comparator, \textbf{ordPens}, had been archived from CRAN at the time of writing and was installed from the CRAN archive, as noted in the article.
+
+The manuscript is original, has not been published elsewhere and is not under consideration by another journal.
+
+\closing{Yours sincerely,}
+\end{letter}
+\end{document}

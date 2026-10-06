@@ -1,5 +1,4 @@
 # ordpp
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23186811.svg)](https://doi.org/10.5281/zenodo.23186811)
 
 Projection pursuit with monotone scoring for ordered categorical (ordinal) data in R,
 together with the replication materials for the article
@@ -18,7 +17,7 @@ Development version from this repository (the package lives in the `ordpp/` fold
 
 ```r
 # install.packages("remotes")
-remotes::install_github("dapr12/ordpp", subdir = "ordpp")
+remotes::install_github("GITHUB-USERNAME/ordpp", subdir = "ordpp")
 ```
 
 ## Quick start
@@ -44,8 +43,8 @@ heldout_test_ordpp(fit, sim$x[301:600, ], B = 999, seed = 106)
 ```bash
 R CMD INSTALL ordpp
 install.packages(c("psychTools", "psych", "Gifi"))   # in R; ordPens from the CRAN archive
-ORDPP_QUICK=1 Rscript scripts/run_all.R              # smoke test, minutes
-Rscript scripts/run_all.R                            # full run, several hours
+Rscript scripts/reproduce_article.R                  # every number, table and figure; a few minutes
+FULL=1 Rscript scripts/reproduce_article.R           # also re-runs the long simulations (hours)
 pdflatex RJwrapper; bibtex RJwrapper; pdflatex RJwrapper; pdflatex RJwrapper; pdflatex RJwrapper
 ```
 
