@@ -1,0 +1,6 @@
+Frozen-map held-out permutation test 
+  H0: iid held-out rows; mutual item independence 
+  n = 300 ; B = 999 ; index type = full 
+  statistic = 0.268 ; p-value = 0.001 
+  variance_ratio  full  shape
+1            3.1 0.268 0.0192

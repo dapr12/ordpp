@@ -1,0 +1,17 @@
+# R package build / check output
+ordpp.Rcheck/
+*.tar.gz
+.Rhistory
+.RData
+.Rproj.user/
+# LaTeX intermediates
+*.aux
+*.bbl
+*.blg
+*.brf
+*.log
+*.out
+*.toc
+*.synctex.gz
+# macOS
+.DS_Store

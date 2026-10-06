@@ -1,0 +1,389 @@
+% !TeX root = RJwrapper.tex
+% Generated values: scripts write results/macros-*.tex; placeholders fill gaps.
+\InputIfFileExists{results/macros-synthetic.tex}{}{}
+\InputIfFileExists{results/macros-bfi.tex}{}{}
+\InputIfFileExists{results/macros-benchmark.tex}{}{}
+\InputIfFileExists{results/macros-runtime.tex}{}{}
+\InputIfFileExists{results/macros-sensitivity.tex}{}{}
+\InputIfFileExists{results/macros-session.tex}{}{}
+\InputIfFileExists{results/macros-derived.tex}{}{}
+\InputIfFileExists{results/macros-derived-sens.tex}{}{}
+\InputIfFileExists{results/macros-sizepower.tex}{}{}
+\InputIfFileExists{results/macros-derived-power.tex}{}{}
+\InputIfFileExists{results/macros-versions.tex}{}{}
+
+\InputIfFileExists{results/macros-bfi-alt.tex}{}{}
+\InputIfFileExists{results/macros-bench-mcse.tex}{}{}
+% ---------------------------------------------------------------------------
+% EDIT THESE LINES BEFORE SUBMISSION (email already set)
+\providecommand{\authorEmail}{diego.perezruiz@manchester.ac.uk}
+\providecommand{\repoLink}{\TBD{GitHub URL}}   % e.g. \url{https://github.com/yourname/ordpp}
+\providecommand{\zenodoLink}{\TBD{Zenodo DOI}} % e.g. \url{https://doi.org/10.5281/zenodo.1234567}
+\providecommand{\rtHardware}{\TBD{FILL IN: Apple MacBook Pro with an M1 chip and 16 GB RAM, running macOS 26.7}}
+% e.g. \providecommand{\rtHardware}{an Apple MacBook Pro with an M2 chip and 16 GB RAM, running macOS 26.7}
+% ---------------------------------------------------------------------------
+\input{placeholders}
+
+\title{ordpp: Projection Pursuit with Monotone Scoring for Ordinal Data in R}
+\author{by Diego Andres Perez Ruiz}
+\maketitle
+
+\abstract{
+Ordered categorical items are usually analysed with equally spaced numerical codes, although the spacing of categories is a modelling choice. The \pkg{ordpp} package jointly estimates monotone category scores and a projection direction by maximizing a weighted characteristic-function discrepancy between the projected joint distribution and the projection implied by item independence with the observed marginals. The index is a one-dimensional slice of a classical characteristic-function measure of mutual dependence. We show that at low frequencies it is dominated by pairwise correlation, which rewards both inflated and deflated projection variance, and we provide a variance-standardized shape index that removes this component. Fitted category dictionaries and loadings are frozen and evaluated on held-out data; because the map is fixed, a permutation test of independence along it is valid in finite samples and requires no refitting. The package also offers a refitted permutation test, bootstrap stability summaries and a wrapper that evaluates scores from other methods with the same tools. We illustrate the workflow on simulated data and on neuroticism items from the SAPA personality data, and compare the package with numerical, polychoric and optimal-scaling principal component analysis in simulations of size, power and latent recovery. In the application, learned category spacing increased the held-out discrepancy by \bfiGainPct\% over equal scoring; a lower variance ratio and a larger shape index suggest that part of this gain reflects structure not captured by the second-moment component alone. Variance-maximizing optimal scaling did not increase the discrepancy. In simulation, a larger discrepancy did not imply better recovery of the generating factor, and for detecting weak dependence the held-out test was more powerful along principal-component directions than along pursued ones. The package therefore serves best as a descriptive tool for structure that is clearly present, while its held-out test applies equally to maps from other methods.
+}
+
+\section{Introduction}
+Surveys measure attitudes, trust and psychological states with ordered response categories. The order of the categories is meaningful, but the numerical distance between them usually is not: coding categories as $1,\ldots,K$ is a convenient choice, not evidence that adjacent categories represent equal steps of an underlying construct \citep{liddell2018,burkner2019}. Conversely, unequal latent thresholds do not by themselves make equally spaced scores inadequate for every descriptive purpose \citep{rhemtulla2012}. Whether learned spacing helps is therefore an empirical question that should be answered for a stated objective and on data not used to learn the spacing.
+
+Projection pursuit searches for informative low-dimensional views of multivariate data \citep{friedman1974,huber1985,jones1987}. Classical projection indices measure departures from normality \citep{friedman1987,hall1989,cook1993}, motivated by the observation that sums of many independent components look Gaussian. For a handful of discrete, skewed ordinal items this motivation is weak: the projection of independent items is a discrete convolution that may be far from Gaussian. A natural alternative reference is the distribution the projection would have if the items were independent with their observed marginal distributions. Departures from that reference are, by construction, departures due to dependence among items.
+
+For ordinal data the direction is not the only choice: the numerical representation of each item matters as well. Optimal scaling estimates category quantifications \citep{young1978,gifi1990,linting2007}, and penalized ordinal principal component analysis interpolates between equal spacing and unrestricted monotone quantification \citep{hoshiyar2023}. Learning monotone scores and penalizing their roughness are therefore not new in themselves. What \pkg{ordpp} contributes is the combination of (i) an independence reference that preserves the observed marginals, (ii) controlled monotone scoring estimated jointly with the direction, and (iii) software that freezes the resulting measurement map and evaluates it on independent data, including a finite-sample-valid test of independence along the frozen map.
+
+The remainder of the article is organized as follows. We review related methods and software, define the index and study what it responds to, and describe validation and inference. We then present the package interface, a worked synthetic example, an application to personality items, a simulation benchmark and guidance on interpretation.
+
+\section{Related methods and software}
+\paragraph{Projection pursuit.} Exploratory projection pursuit and the grand tour \citep{asimov1985} are available in R through \pkg{tourr}, which supports guided tours with user-defined indices \citep{wickham2011,laa2020}, and \pkg{REPPlab}, which optimizes kurtosis and related indices with population-based algorithms \citep{fischer2021}. These tools treat input variables as fixed numerical columns; they do not estimate category scores.
+
+\paragraph{Optimal scaling and ordinal PCA.} Nonlinear principal component analysis with ordinal transformations is implemented in \pkg{Gifi} \citep{Gifi,deleeuw2009}, and its penalized version in \pkg{ordPens} through \code{ordPCA()} \citep{hoshiyar2023,hoshiyar2021}, whose smoothness penalty follows \citet{gertheiss2009}. Multiple correspondence analysis is available in \pkg{FactoMineR} and \pkg{ca} \citep{le2008,nenadic2007,greenacre2017}. These methods maximize explained variance, a second-moment criterion.
+
+\paragraph{Latent-response models.} Polychoric correlations \citep{olsson1979}, available in \pkg{psych} \citep{psych}, and graded-response or ordinal factor models \citep{samejima1969}, available in \pkg{mirt} and \pkg{lavaan} \citep{chalmers2012,rosseel2012}, posit continuous latent responses. They answer a measurement question rather than an exploratory one, and respondent scores require an explicit scoring rule.
+
+\paragraph{Characteristic-function dependence measures.} Empirical characteristic functions underpin tests of normality \citep{epps1983} and of independence \citep{feuerverger1977,feuerverger1993}. Distance covariance is a weighted $L^2$ distance between a joint characteristic function and the product of marginal characteristic functions \citep{szekely2007,szekely2009}, equivalent to kernel independence criteria \citep{gretton2008,sejdinovic2013}; \citet{bakirov2006} extend it to mutual independence of several vectors, and \pkg{energy} implements these statistics \citep{energy}. Independent component analysis uses the same machinery to find directions in which components are independent \citep{hyvarinen2000,eriksson2003,matteson2017}. Our index evaluates the mutual-dependence characteristic-function discrepancy along a single ray $u=ta$ (equation~\ref{eq:slice} below), and projection pursuit searches for the ray where it is largest. The search returns an interpretable direction and a respondent score, which an omnibus dependence statistic does not.
+
+Table~\ref{tab:software} summarizes these distinctions.
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{6.1cm}}
+\toprule
+Package & Main task & Relation to \pkg{ordpp}\\
+\midrule
+\pkg{stats} & Numerical PCA & Fixed spacing; variance criterion.\\
+\pkg{Gifi} & Optimal-scaling PCA, MCA & Learned ordinal scores; variance criterion.\\
+\pkg{ordPens} & Penalized ordinal PCA & Closest scoring comparator: smoothness-penalized scores; variance criterion.\\
+\pkg{psych}, \pkg{mirt}, \pkg{lavaan} & Polychoric and latent-response models & Measurement models; respondent scoring rule must be specified.\\
+\pkg{tourr}, \pkg{REPPlab} & Projection pursuit and tours & Pursuit over directions with fixed numerical columns.\\
+\pkg{energy} & Distance-covariance tests & Omnibus dependence statistic; no direction or scores.\\
+\pkg{ordpp} & Monotone scoring with independence-reference pursuit & Joint scores and direction; frozen-map validation and testing.\\
+\bottomrule
+\end{tabular}
+\caption{Related R packages. The comparison describes tasks, not performance.}
+\label{tab:software}
+\end{table}
+
+\section{Method}
+\subsection{Scores and the independence reference}
+Let $X=(X_1,\ldots,X_p)$ with $X_j\in\{1,\ldots,K_j\}$, where labels denote order only, and write $q_{jk}=P(X_j=k)>0$. Item scores $s_j:\{1,\ldots,K_j\}\to\mathbb{R}$ are strictly increasing and standardized under the marginal,
+\begin{equation}\label{eq:scores}
+ s_j(1)<\cdots<s_j(K_j),\qquad \textstyle\sum_k q_{jk}s_j(k)=0,\qquad \sum_k q_{jk}s_j(k)^2=1 .
+\end{equation}
+For a unit vector $a$ define $Y_j=s_j(X_j)$ and the projection $Z_{a,s}=\sum_j a_jY_j$. Negative loadings accommodate reversed items without allowing decreasing score functions; the sign of $a$ is fixed by making its largest absolute entry positive. Let $P_0=\bigotimes_jP_j$ be the product of the item marginals and $Z^0_{a,s}$ the projection under $P_0$, which has unit variance. Its characteristic function is
+\begin{equation}\label{eq:ref}
+ \phi^0_{a,s}(t)=\prod_{j=1}^p\sum_{k=1}^{K_j}q_{jk}\exp\{\mathrm{i}ta_js_j(k)\},
+\end{equation}
+so the reference retains the uneven category probabilities of every item. Figure~\ref{fig:reference} gives an exact two-item illustration in which the marginals are identical but the projected laws differ.
+
+\begin{figure}[htbp]
+\centering
+\resultFigure{fig-reference.pdf}{\textwidth}
+\caption{An exact illustration (not fitted output). Two binary items with equal marginals: (a) a dependent joint law, (b) the product of marginals, (c) the induced laws of the raw sum, $(0.4,0.2,0.4)$ versus $(0.25,0.5,0.25)$.}
+\label{fig:reference}
+\end{figure}
+
+\subsection{A characteristic-function index}
+Let $\phi_{a,s}$ be the characteristic function of $Z_{a,s}$ and $\omega$ a positive integrable weight. The index is
+\begin{equation}\label{eq:index}
+ I(a,s)=\int_{\mathbb{R}}\bigl|\phi_{a,s}(t)-\phi^0_{a,s}(t)\bigr|^2\omega(t)\,dt .
+\end{equation}
+Writing $\psi_Y$ for the joint characteristic function of $Y=(Y_1,\ldots,Y_p)$ and $\psi_{Y_j}$ for its marginals,
+\begin{equation}\label{eq:slice}
+ \phi_{a,s}(t)-\phi^0_{a,s}(t)=\psi_Y(ta)-\prod_{j=1}^p\psi_{Y_j}(ta_j),
+\end{equation}
+so $I(a,s)$ is the mutual-dependence discrepancy of \citet{bakirov2006} restricted to the ray $\{ta:t\in\mathbb{R}\}$. Characteristic functions accommodate discrete laws directly, so no density smoothing or entropy estimation is required.
+
+\begin{proposition}\label{prop:char}
+Let $\omega(t)>0$ for almost every $t$ and let each $s_j$ be strictly increasing. Then $I(a,s)=0$ for every unit vector $a$ if and only if $X_1,\ldots,X_p$ are mutually independent.
+\end{proposition}
+\begin{proof}
+Independence gives $\phi_{a,s}=\phi^0_{a,s}$ for all $a$. Conversely, if $I(a,s)=0$ then $\phi_{a,s}=\phi^0_{a,s}$ almost everywhere and hence everywhere by continuity. Every nonzero $u\in\mathbb{R}^p$ can be written as $u=ta$ with $a=u/\|u\|$ and $t=\|u\|$, and the case $u=0$ is trivial. Hence, by \eqref{eq:slice}, $\psi_Y(u)=\prod_{j=1}^p\psi_{Y_j}(u_j)$ for every $u\in\mathbb{R}^p$. By the characteristic-function characterization of independence, the components of $Y$ are mutually independent. Since each $s_j$ is strictly increasing and hence injective, the same is true of $X$.
+\end{proof}
+
+The proposition requires all directions and all frequencies. A single direction can have zero index under dependence, and a finite frequency grid, used below, does not retain the guarantee.
+
+\subsection{What the index responds to: variance and shape}
+Write $\sigma^2_{a,s}=\mathrm{Var}(Z_{a,s})=a^\top R_s a$, where $R_s$ is the correlation matrix of $Y$, and $\mu_r,\mu_r^0$ for the $r$th moments of $Z_{a,s}$ and $Z^0_{a,s}$.
+
+\begin{proposition}\label{prop:expansion}
+As $t\to0$,
+\[
+ |\phi_{a,s}(t)-\phi^0_{a,s}(t)|^2=\frac{t^4}{4}\bigl(\sigma^2_{a,s}-1\bigr)^2
+ +\frac{t^6}{36}\bigl(\mu_3-\mu_3^0\bigr)^2-\frac{t^6}{24}\bigl(\sigma^2_{a,s}-1\bigr)\bigl(\mu_4-\mu_4^0\bigr)+O(t^8),
+\]
+with $\sigma^2_{a,s}-1=\sum_{j\neq k}a_ja_k\,\mathrm{Corr}\{s_j(X_j),s_k(X_k)\}$.
+\end{proposition}
+\begin{proof}
+Both projections have mean zero and bounded support. Expand $\cos(tz)$ and $\sin(tz)$ to fourth and third order; the real part of the difference is $-\tfrac{t^2}{2}(\sigma^2_{a,s}-1)+\tfrac{t^4}{24}(\mu_4-\mu_4^0)+O(t^6)$ and the imaginary part is $-\tfrac{t^3}{6}(\mu_3-\mu_3^0)+O(t^5)$. Squaring and adding gives the result.
+\end{proof}
+
+Two consequences matter in practice. First, the leading term depends only on pairwise correlations of the transformed items, so a large index does not by itself indicate dependence beyond correlation. Second, the term is symmetric in inflation and deflation of variance: in a positively correlated battery the index can be large along a contrast whose variance is far below one, because correlated items cancel. The soft variance floor in \pkg{ordpp} (below) guards against degenerate cancellation, and \code{decompose\_ordpp()} reports the variance ratio $\sigma^2_{a,s}$ so that users can see which case they are in.
+
+To target departures beyond the second moment, the package also offers the \emph{shape index}
+\begin{equation}\label{eq:shape}
+ I^{\mathrm{shape}}(a,s)=\int_{\mathbb{R}}\bigl|\phi_{a,s}(t/\sigma_{a,s})-\phi^0_{a,s}(t)\bigr|^2\omega(t)\,dt,
+\end{equation}
+which compares the variance-standardized projection with the reference. The independence reference requires no corresponding rescaling because $\mathrm{Var}(Z^0_{a,s})=1$ by construction: the transformed items have unit variance and $a$ has unit norm. Its low-frequency expansion starts at order $t^6$ with the squared difference of standardized third moments. If $Y$ were jointly Gaussian, $I^{\mathrm{shape}}$ would vanish for every direction despite arbitrary correlation, which makes the intent explicit: the shape index ignores dependence that a correlation matrix already summarizes. It is a complement to, not a replacement for, the full index, and it is not a characterization of independence. Because higher-order structure is weaker and harder to estimate than correlation, we recommend reporting the shape index as a diagnostic of a full-index fit, via \code{decompose\_ordpp()}, rather than optimizing it directly; the synthetic example below shows that direct optimization can select an unstable low-variance contrast.
+
+\subsection{Finite frequency grid and sample version}
+For computation the integral is replaced by a fixed grid $t_1,\ldots,t_L$ with weights $u_\ell\propto\exp(-t_\ell^2/2)$ summing to one,
+\begin{equation}\label{eq:grid}
+ \widehat I_L(a,s)=\sum_{\ell=1}^L u_\ell\bigl|\widehat\phi_{a,s}(t_\ell)-\widehat\phi^0_{a,s}(t_\ell)\bigr|^2,
+\end{equation}
+where both characteristic functions are replaced by their empirical versions and $\widehat\phi^0$ is the product of empirical marginal characteristic functions. The default grid has 15 points between 0.2 and 3 on the scale of the reference standard deviation; because $|\phi(-t)-\phi^0(-t)|=|\phi(t)-\phi^0(t)|$, positive frequencies suffice. Under independence $\widehat I_L$ is positive in finite samples, of order $n^{-1}$, so raw index values are not calibrated; the tests below provide calibration. Sensitivity to the grid is examined in the application.
+
+With positive weights $w_i$ and $v_i=w_i/\sum_r w_r$, the marginals become $\widehat q_{jk}=\sum_iv_i1\{X_{ij}=k\}$ and $\widehat\phi_{a,s}(t)=\sum_iv_i\exp(\mathrm{i}t\sum_ja_js_j(X_{ij}))$. This targets the weighted empirical distribution and is invariant to rescaling the weights; it does not by itself yield design-based uncertainty \citep{lumley2004,rao1988}.
+
+\subsection{Scoring models, regularization and optimization}
+Three scoring models are available: fixed equally spaced scores (\code{"linear"}); one raw curve shared by items with identical response scales (\code{"common"}), standardized separately for each item; and item-specific curves (\code{"item"}). Raw gaps are parametrized as
+\begin{equation}\label{eq:gaps}
+ d_{jk}=\eta+(1-\eta)\frac{\exp(h_{jk})}{(K_j-1)^{-1}\sum_r\exp(h_{jr})},\qquad h_{j1}=0,\quad h_{jk}\in[-3,3],
+\end{equation}
+so that every gap is at least a fraction $\eta$ (default 0.03) of the mean gap; scores are cumulative sums standardized by \eqref{eq:scores}. Roughness is measured by the scale-free penalty
+\[
+ R(s)=\frac1p\sum_{j=1}^p\frac1{K_j-1}\sum_{k=1}^{K_j-1}\Bigl(\frac{d_{jk}}{\bar d_j}-1\Bigr)^2,
+\]
+which is zero for equal spacing. The fitted criterion is
+\begin{equation}\label{eq:fit}
+ \max_{a,s}\Bigl\{\widehat I_L(a,s)-\gamma R(s)-\lambda\|a\|_1-100\bigl[\max\{0,\,c-\widehat\sigma^2_{a,s}\}\bigr]^2\Bigr\},
+\end{equation}
+with variance floor $c$ (default 0.05). The $L^1$ term encourages concentrated loadings but, under a smooth quasi-Newton optimizer, does not produce exact zeros \citep{zou2006}.
+
+Optimization uses L-BFGS-B \citep{byrd1995} through \code{stats::optim()} with numerical gradients, raw loadings normalized inside the objective and bounded gap parameters. The first start is the leading principal component of equally scored items; further starts are random. One evaluation costs $O(npL)$ operations and numerical differentiation multiplies this by the number of parameters, $p+\sum_j(K_j-2)$ for item-specific scoring. Fitted objects record convergence codes, the objectives of all starts and the number of gap parameters on their bounds.
+
+\section{Validation and inference}
+\subsection{Frozen maps and sample splitting}
+A fitted map consists of the category dictionary, the standardized scores and the loadings. \code{predict()} applies a frozen map to new respondents without re-estimating anything and rejects unseen categories. \code{validate\_ordpp()} evaluates the index of a frozen map on new data, re-estimating only the reference marginals and the independence variance from those data, so it asks how unusual the frozen projection is relative to independence in the new sample.
+
+We recommend a three-way split at the level of independent sampling units: fit candidate settings on training data, select the scoring model and penalties on validation data, and evaluate the selected map once on the test data \citep{cox1975}. Differences between training and held-out indices may reflect overfitting, sampling variation or distribution shift. For longitudinal or multi-group comparisons, a single frozen map should be applied to all waves or groups; separate fits produce axes that are not comparable.
+
+\subsection{A finite-sample-valid held-out permutation test}
+Let $T(\mathcal D)$ be the held-out index of a fixed map on a sample $\mathcal D$ of $m$ rows, and let $\mathcal D_b$ be obtained by permuting each item column of $\mathcal D$ independently.
+
+\begin{proposition}\label{prop:heldout}
+Suppose the map was estimated and selected without using $\mathcal D$, the rows of $\mathcal D$ are iid, and the items are mutually independent. Then for $B$ independent permutations, $p=\{1+\sum_{b=1}^B1(T(\mathcal D_b)\ge T(\mathcal D))\}/(B+1)$ satisfies $P(p\le\alpha)\le\alpha$ for every $\alpha\in[0,1]$, with the probability taken over both the data and the random permutations.
+\end{proposition}
+\begin{proof}
+Under the assumptions the columns of $\mathcal D$ are independent random vectors with exchangeable entries, so independent within-column permutations leave the joint law of $\mathcal D$ unchanged. Conditional on the map, $T(\mathcal D),T(\mathcal D_1),\ldots,T(\mathcal D_B)$ are therefore exchangeable, and the result follows from the standard argument for Monte Carlo permutation $p$-values \citep{phipson2010}. The permutations are drawn at random rather than enumerated, so the $+1$ in numerator and denominator makes the $p$-value valid, and slightly conservative, in finite samples; its smallest attainable value is $1/(B+1)$.
+\end{proof}
+
+Because column permutation leaves every marginal unchanged, $\widehat\phi^0$ is identical across permutations and only the joint term is recomputed; the test needs no refitting and costs $B$ index evaluations. It is implemented in \code{heldout\_test\_ordpp()}.
+
+\subsection{A refitted permutation test}
+When no held-out sample is available, \code{permutation\_ordpp()} permutes the item columns of the full data and repeats the entire fixed-setting search, using the maximized penalized objective as statistic. The null distribution then includes the search over scores and directions. Supplying the fitted object through \code{fit =} guarantees that observed and null fits use identical settings. Tuning chosen with the same data must either be repeated within every permutation or fixed in advance. The test costs $B+1$ complete fits.
+
+Neither test addresses polarization, a number of latent classes or a factor structure: the null hypothesis is mutual independence. Neither is valid for clustered or complex survey samples, for which design-respecting procedures are required \citep{rao1988}.
+
+\subsection{Stability}
+\code{stability\_ordpp()} refits the selected setting on bootstrap resamples of rows or of clusters, aligns signs with the original direction and summarizes loadings, category scores and the absolute cosine between bootstrap and original directions. These summaries describe algorithmic and sampling stability \citep{meinshausen2010}; percentile intervals after data-driven selection need not have nominal coverage.
+
+\section{The ordpp package}
+\pkg{ordpp} \citep{ordpp} depends only on \pkg{stats} and \pkg{graphics}. Table~\ref{tab:api} lists the interface. Input is a data frame of ordered factors or numeric codes (treated as ranks); unordered factors and missing values are rejected, so exclusions are explicit in the user's code. Every category of an ordered factor must occur in the training data, and prediction accepts only categories that occurred in training.
+
+\begin{table}[htbp]
+\centering\small
+\begin{tabular}{p{4.3cm}p{8.6cm}}
+\toprule
+Function & Purpose\\
+\midrule
+\code{ordpp()} & Fit scores and a direction; \code{scoring}, \code{gamma}, \code{lambda}, \code{index = "full"} or \code{"shape"}.\\
+\code{predict()}, \code{plot()}, \code{print()} & Apply a frozen map; plot score curves or the projection; summarize.\\
+\code{ordpp\_index()} & Evaluate \eqref{eq:grid} or its shape version for given transformed items.\\
+\code{validate\_ordpp()} & Index of a frozen map on new data.\\
+\code{decompose\_ordpp()} & Variance ratio, full index and shape index.\\
+\code{heldout\_test\_ordpp()} & Finite-sample-valid permutation test along a frozen map (Proposition~\ref{prop:heldout}).\\
+\code{permutation\_ordpp()} & Refitted permutation test.\\
+\code{stability\_ordpp()} & Row or cluster bootstrap stability.\\
+\code{as\_ordpp\_map()} & Wrap scores and loadings from another method as a frozen map.\\
+\code{simulate\_ordpp()} & Synthetic data under several scenarios.\\
+\bottomrule
+\end{tabular}
+\caption{Exported functions and methods of \pkg{ordpp}.}
+\label{tab:api}
+\end{table}
+
+A fitted object stores the direction, scores, category levels, training projection and transformed items, weights, the unpenalized index, the penalized objective, roughness, projection variance, convergence diagnostics for every start, the number of gap parameters on their bounds, all settings and the call. Storing the settings allows the resampling functions to repeat a fit exactly. \code{as\_ordpp\_map()} standardizes externally supplied scores on the training marginals, so that maps from optimal-scaling or polychoric analyses can be evaluated on exactly the same footing as \pkg{ordpp} fits; we use it for all comparisons below.
+
+A typical analysis follows the sequence fit, inspect, validate, test, check stability and apply:
+\begin{example}
+fit  <- ordpp(x_train, scoring = "item")   # fit scores and direction
+plot(fit, type = "scores"); fit$starts     # inspect curves and starts
+decompose_ordpp(fit)                       # variance ratio and shape
+validate_ordpp(fit, x_valid)               # compare settings on new rows
+heldout_test_ordpp(fit, x_test)            # test once on untouched rows
+stability_ordpp(fit, x_train, B = 50)      # bootstrap stability
+z <- predict(fit, x_new)                   # apply the frozen map
+\end{example}
+
+\section{A worked synthetic example}
+\code{simulate\_ordpp()} thresholds a latent two-component normal mixture into five categories with unequal thresholds. Items 1--3 load positively and item 4 negatively; the remaining items are noise. We fit item-specific scoring on half of 600 observations:
+\begin{example}
+library(ordpp)
+sim <- simulate_ordpp(n = 600, p = 6, seed = 103)
+set.seed(104)
+train <- sample.int(nrow(sim$x), 300)
+test <- setdiff(seq_len(nrow(sim$x)), train)
+fit <- ordpp(sim$x[train, ], scoring = "item", gamma = 0.01,
+             nstart = 5, maxit = 300, seed = 105)
+fit
+fit$starts
+\end{example}
+\resultOutput{syn-fit.txt}
+
+The best start returned convergence code \synConv{}; the number of gap parameters on their bounds was \synBounds{}. One of the five starts ended at a clearly poorer local optimum, which is why several starts are used; agreement among the remaining starts is an empirical diagnostic, not a certificate of a global optimum. Figure~\ref{fig:syn}(a) shows the learned score curves. We then evaluate the frozen map on the 300 test rows:
+\begin{example}
+heldout_test_ordpp(fit, sim$x[test, ], B = 999, seed = 106)
+decompose_ordpp(fit, sim$x[test, ])
+\end{example}
+\resultOutput{syn-heldout.txt}
+
+The held-out index was \synTestIndex{}, with the minimum attainable Monte Carlo $p$-value, $1/(B+1)=\synHeldP$ for $B=\synHeldB$, and the variance ratio was \synVarRatio{}. Because the data are synthetic, we can also report that the absolute correlation between the held-out projection and the latent factor was \synLatentCor{}. For comparison, the refitted test repeats the whole search under each permutation; with fixed equal scoring this is affordable. Its $p$-value below, 0.01, is the smallest attainable with $B=99$:
+\begin{example}
+fit_lin <- ordpp(sim$x[train, ], scoring = "linear", nstart = 3,
+                 maxit = 150, seed = 107)
+permutation_ordpp(sim$x[train, ], B = 99, seed = 108, fit = fit_lin)
+\end{example}
+\resultOutput{syn-perm.txt}
+
+\begin{figure}[htbp]
+\centering
+\resultFigure{fig-syn.pdf}{\textwidth}
+\caption{Synthetic example: (a) learned item-specific category scores; (b) kernel density of the frozen projection on the 300 test rows, with a rug of individual values.}
+\label{fig:syn}
+\end{figure}
+
+Table~\ref{tab:syn} compares scoring models fitted on the same training rows with the same budget, together with external maps evaluated through \code{as\_ordpp\_map()}. These are PCA of standardized equal scores; polychoric PCA, whose loadings are the leading eigenvector of the polychoric correlation matrix and are applied to standardized equal scores to obtain respondent projections, because a correlation estimate alone does not define respondent scores; ordinal \pkg{Gifi} PCA; and \pkg{ordPens} PCA. Since polychoric and ordinary PCA then differ only in their loadings, their projections and indices are often nearly identical. All indices are on the same scale, and all $p$-values come from the held-out test.
+
+Flexible scoring raised the held-out index from \synLinTest{} with equal scores to \synItemTest{} with item-specific scores, an increase of \synGainPct\%, with training and test values close together. It did not improve recovery of the generating factor: the absolute latent correlation fell slightly, from \synLinCor{} to \synItemCor{}. The index rewards dependence along the projection, and the scores that maximize it need not be those that best reconstruct a particular latent variable. Optimizing the shape index behaved differently again. It selected a low-variance contrast (variance ratio \synShapeFitVar{}) almost unrelated to the factor ($|r|=\synShapeFitCor$), and its shape index fell from \synShapeFitTrain{} in training to \synShapeFitTest{} on test rows, below the test shape index of the ordinary item-specific fit (\synItemTestShape{}). Every map rejected independence at the smallest attainable $p$-value, $1/(B+1)$, as expected under a factor model; comparisons between maps therefore rest on the index values rather than on the tests.
+
+\begin{table}[htbp]
+\centering\small
+\resultTable{tab-syn-ablation.tex}
+\caption{Synthetic example: training and test indices, test shape index, test variance ratio $\widehat\sigma^2_{a,s}$, held-out permutation $p$-value and absolute correlation with the latent factor for each frozen map.}
+\label{tab:syn}
+\end{table}
+
+\section{Application: SAPA neuroticism items}
+The \code{bfi} data in \pkg{psychTools} contain 25 six-category personality items from 2,800 participants in the SAPA project, an online convenience sample \citep{psychTools,revelle2010}; the items come from the International Personality Item Pool \citep{goldberg1999}. We analyse the five neuroticism items N1--N5. Of \bfiNraw{} respondents, \bfiDropped{} had at least one missing neuroticism response and were excluded, leaving \bfiN{}. Rows were split at random into training (\bfiNtrain{}), validation (\bfiNvalid{}) and test (\bfiNtest{}) sets.
+\begin{example}
+data("bfi", package = "psychTools")
+items <- paste0("N", 1:5)
+x <- bfi[complete.cases(bfi[, items]), items]
+x <- as.data.frame(lapply(x, ordered, levels = 1:6))
+\end{example}
+
+On the training rows we fitted equal scoring and common and item-specific scoring with $\gamma\in\{0.001,0.01,0.1\}$, five starts and 300 iterations each, and selected the setting with the largest validation index (Table~\ref{tab:bfigrid}). The selected model used \bfiSelScoring{} scoring with $\gamma=\bfiSelGamma$. This setting placed \bfiSelBounds{} of its \bfiNgap{} gap parameters on their bounds, so several adjacent categories were pushed to the smallest or largest spacing allowed. The smoother setting $\gamma=\bfiAltGamma$ had almost the same validation index (\bfiAltValid{} against \bfiSelValid{}) with \bfiAltBounds{} parameters on bounds. We retain the selection made by the rule fixed before fitting, because changing the rule after seeing the results would itself be post hoc, and we report the smoother setting as a sensitivity analysis: evaluated once on the test rows, the $\gamma=0.01$ fit had index \bfiAltTest{}, shape index \bfiAltShape{} and variance ratio \bfiAltVarRatio{}, its direction agreed with the selected one ($|\cos|=\bfiAltCos$), and no standardized category score differed by more than \bfiAltScoreDiff{} (Table~\ref{tab:bfitest}). The conclusions about the index, the variance ratio, the shape index and the direction therefore do not depend on the choice between the two settings. Individual category scores do differ, by up to \bfiAltScoreDiff{} standard deviations, because the smoother penalty keeps adjacent categories from being merged, so the detailed shape of the score curves should not be over-interpreted. In future analyses we would prespecify a parsimony rule that chooses the smoothest setting whose validation index lies within a stated tolerance of the best.
+
+\begin{table}[htbp]
+\centering\small
+\resultTable{tab-bfi-grid.tex}
+\caption{Candidate settings for the neuroticism items, fitted on training rows and compared on validation rows. Roughness is $R(s)$; ``On bounds'' counts gap parameters at $\pm3$.}
+\label{tab:bfigrid}
+\end{table}
+
+Table~\ref{tab:bfitest} evaluates the selected map once on the test rows, together with equal scoring, a unit-weighted sum of standardized items and external maps. On the test rows the selected map had index \bfiSelTest{} (held-out $p=\bfiSelP$, the minimum attainable with $B=\bfiHeldB$) and variance ratio \bfiSelVarRatio{}; its correlation with the unit-weighted sum was \bfiCorKeyed{}. This is \bfiGainPct\% above the equal-score index of \bfiLinTest{}. The gain did not come from a larger projection variance: the variance ratio was lower for the selected map than for equal scoring (\bfiSelVarRatio{} against \bfiLinVarRatio{}), while the test shape index rose from \bfiLinShape{} to \bfiSelShape{}. Proposition~\ref{prop:expansion} is a local, low-frequency expansion and does not by itself apportion the gain. Together with the lower variance ratio and larger shape index, however, these results suggest that part of the gain from learned spacing reflects structure not captured by the second-moment component alone, possibly related to the skewed response distributions of these items. Equal-score, polychoric and unit-weighted projections were almost indistinguishable. Ordinal optimal scaling with \pkg{Gifi} and penalized ordinal PCA with \pkg{ordPens} both gave lower indices than equal scoring (\bfiGifiTest{} and \bfiOrdpensTest{}), as in the simulations: quantifications chosen to maximize explained variance are not those that maximize discrepancy from independence. All maps rejected independence at the smallest attainable $p$-value, as expected for a coherent personality scale. Figure~\ref{fig:bfi} shows the selected score curves with bootstrap bands and the held-out projections. Over \bfiStabB{} bootstrap refits, the median absolute cosine with the selected direction was \bfiStabCong{}, and none of the \bfiStabB{} refits failed. The learned scores rise steeply across the lower and middle categories and are nearly flat across the upper ones, which is where the gap parameters reached their bounds. The selected projection also has a flatter density with two shoulders, unlike the equal-score projection. As discussed under interpretation below, such shapes can arise from merged categories and density smoothing, and we make no claim about modality or respondent groups.
+
+\begin{table}[htbp]
+\centering\small
+\resultTable{tab-bfi-test.tex}
+\caption{Final test-set evaluation of frozen maps for the neuroticism items. The second row is the smoother $\gamma=0.01$ setting, reported as a sensitivity analysis rather than as a second selection. ``Held-out $p$ of 0.001 is the minimum attainable with $B=999$. The last column is the correlation of each projection with the unit-weighted sum of standardized items.}
+\label{tab:bfitest}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\resultFigure{fig-bfi.pdf}{\textwidth}
+\caption{Neuroticism items: (a) selected category scores with 90\% bootstrap bands; (b) densities of the selected and equal-score projections on test rows.}
+\label{fig:bfi}
+\end{figure}
+
+Table~\ref{tab:sens} refits the selected setting under alternative frequency grids, gap floors, variance floors and the shape index, and reports the validation index and agreement with the selected direction. Across the alternative frequency grids, gap floors and variance floors, the direction was essentially unchanged (smallest absolute cosine \sensMinCosNum{}) and no category score moved by more than \sensMaxScore{} standard deviations. Raising the minimum gap from 0.03 to 0.10, which directly constrains the parameters that had reached their bounds, left the validation index almost unchanged (\sensMinGapValid{}); the categories pushed to the bounds are effectively merged, and how small their gap is allowed to be does not matter. The variance floor was never active, since the projection variance was far above it. Refitting with the default settings but different random starts moved scores by at most \sensDefaultScore{}, a measure of optimizer variability. By contrast, optimizing the shape index produced an almost orthogonal direction ($|\cos|=\sensShapeCos$) with variance ratio \sensShapeVar{}, the same low-variance contrast seen in the synthetic example.
+
+\begin{table}[htbp]
+\centering\small
+\resultTable{tab-sensitivity.tex}
+\caption{Sensitivity of the selected neuroticism fit to numerical settings (validation rows). The first two columns are comparable across all rows. Rows marked $\dagger$ use a different frequency grid, so their validation index is on a different scale and must not be compared with the other rows. ``Max score change'' is the largest absolute difference in any standardized category score from the selected fit.}
+\label{tab:sens}
+\end{table}
+
+The selected projection is a direction of maximal discrepancy from independence, not a validated neuroticism score; comparison with the unit-weighted sum and with ordinal factor scores clarifies how its aim differs from measurement modelling. The data come from a self-selected online sample and support statements about structure in these responses, not population prevalence.
+
+\section{Simulation benchmark and computation}
+\subsection{Size and power of the held-out test}
+Proposition~\ref{prop:heldout} guarantees the level of the held-out test, but a numerical check guards against implementation errors. We simulated $p=8$ five-category items with no dependence (\code{strength = 0}), split each sample in half, fitted maps on one half and tested on the other with $B=\spB$. Table~\ref{tab:size} reports rejection rates at level 0.05 over \sizeReps{} replications for the fast maps and \sizeItemReps{} for item-specific scoring and \pkg{Gifi}; they range from \sizeMin{} to \sizeMax{}, with Monte Carlo standard errors of about \sizeMcse{} for the fast maps, consistent with the nominal level. At $n=300$, \sizeLost{} of the \sizeReps{} replications for the fast maps were discarded because a category appeared only in the test half and could not be predicted. Because exclusion depends only on category support across the random split, not on the test statistic, we do not expect it to affect calibration materially, but the reported rates are formally conditional on every test category having occurred in training.
+
+\begin{table}[htbp]
+\centering\small
+\resultTable{tab-size.tex}
+\caption{Empirical size of the held-out permutation test at level 0.05 under independence.}
+\label{tab:size}
+\end{table}
+
+To compare power, we multiplied all loadings of the mixture scenario by $c\in\{0.1,0.2,0.3\}$, giving weak dependence, with $n=300$ and \powReps{} replications (Table~\ref{tab:power}). Because every map is tested with the same procedure, differences in power reflect how well each map concentrates the dependence present in the held-out data. At $c=0.1$ and $0.2$ rejection rates ranged from \powWeakMin{} to \powWeakMax{}, close to the nominal level: with 150 test rows this dependence is essentially undetectable. At $c=0.3$ the variance-oriented maps were clearly more powerful: polychoric PCA rejected in \powPoly{} and PCA on equal scores in \powPCA{} of replications, against \powLin{} for \pkg{ordpp} with equal scores, \powCommon{} with common scoring, \powItem{} with item-specific scoring and \powGifi{} for \pkg{Gifi}. The comparison between PCA and \pkg{ordpp} with equal scores isolates the cause, since both use the same scores: under weak signal, the direction that maximizes the empirical discrepancy on the training half is a noisier estimate than the leading eigenvector, which is well suited to a factor model in which all dependence is correlational. Learned spacing did not compensate. For the purpose of detecting weak dependence, we therefore recommend testing along a principal-component direction, which \code{as\_ordpp\_map()} and \code{heldout\_test\_ordpp()} make straightforward; the pursued direction is better suited to describing structure that is clearly present.
+
+\begin{table}[htbp]
+\centering\small
+\resultTable{tab-power.tex}
+\caption{Power of the held-out permutation test at level 0.05 under weak dependence ($n=300$, half used for fitting), by loading multiplier $c$.}
+\label{tab:power}
+\end{table}
+
+\subsection{Held-out discrepancy and latent recovery}
+We next simulated $p=8$ items under four dependent scenarios: a two-component mixture factor (separation 1); the same with a rarely used top category on informative items; two factors; and an extreme response style affecting 30\% of respondents, which induces dependence even among noise items \citep{baumgartner2001}. For each of \benchReps{} replications per cell and $n\in\{300,800\}$, half the rows were used for fitting (three starts, at most \benchMaxit{} iterations) and half for evaluation. Comparators were PCA on equal scores, polychoric PCA (leading eigenvector of the polychoric correlation matrix, applied to standardized equal scores), ordinal \pkg{Gifi} PCA and penalized ordinal PCA from \pkg{ordPens} with smoothing parameter $\lambda=1$, all wrapped by \code{as\_ordpp\_map()}. \pkg{ordPens} had been archived from CRAN at the time of writing and was installed from the CRAN archive (version 1.1.0). Replications in which a category occurred in the test half but not in the training half cannot be predicted and were discarded (\benchLost{} of \benchCells{}); this affected mainly the rare-category scenario at $n=300$, and the results are conditional on a usable train--test category match in the same sense as above.
+
+Tables~\ref{tab:benchindex} and~\ref{tab:cor} report mean held-out indices and mean absolute correlations with the first latent factor for $n=\benchNmax$. Averaged over the dependent scenarios, common scoring raised the held-out index by \benchGainCommon\% over equal scoring and item-specific scoring by \benchGainItem\%. Common and item-specific scoring performed similarly: their mean indices differed by at most \benchCIDiffMax{}, comparable to the Monte Carlo standard error of the difference (about \benchCIMcseMax{}), so the more parsimonious common model, correct here because all items share thresholds, lost nothing. Quantifications from \pkg{Gifi} and \pkg{ordPens} again gave lower indices than equal scores, while recovering the factor about as well as equal scores. The ordering of latent correlations was reversed: the variance-oriented maps recovered the generating factor slightly better than the maps with the largest discrepancy, confirming that the two objectives differ. Of \benchItemRuns{} item-specific fits, \benchItemNonconv{} stopped at the iteration limit. In a preliminary run with a limit of 150 iterations most item-specific fits stopped early, yet mean held-out indices changed by less than 0.001 when the limit was raised, so the conclusions do not depend on it; the package default is now 500. Tables~\ref{tab:benchindex} and~\ref{tab:cor} give Monte Carlo standard errors in parentheses; runtimes and results for $n=300$ are in the supplementary files \code{benchmark-summary.csv} and \code{benchmark-raw.csv}.
+
+\begin{table}[htbp]
+\centering\small
+\resultTable{tab-bench-index.tex}
+\caption{Mean held-out index by scenario and method, with Monte Carlo standard errors in parentheses ($n=\benchNmax$; \benchReps{} replications per scenario).}
+\label{tab:benchindex}
+\end{table}
+
+\begin{table}[htbp]
+\centering\small
+\resultTable{tab-bench-cor.tex}
+\caption{Mean absolute correlation between held-out projections and the first latent factor, with Monte Carlo standard errors in parentheses ($n=\benchNmax$).}
+\label{tab:cor}
+\end{table}
+
+\subsection{Computation}
+Figure~\ref{fig:runtime} shows the time for a single start with at most \rtMaxit{} iterations. The largest configuration, $n=\rtMaxN$ and $p=\rtMaxP$ with item-specific scoring, took \rtMaxSec{} seconds on \rtHardware{} (\code{\rtCPU}). With the default limit of 500 iterations and several starts, times scale accordingly. Cost grows linearly in $n$ and roughly quadratically in $p$ for item-specific scoring, because the number of parameters and the cost of each evaluation both grow with $p$. Analytic gradients would remove the factor due to numerical differentiation.
+
+\begin{figure}[htbp]
+\centering
+\resultFigure{fig-runtime.pdf}{0.65\textwidth}
+\caption{Elapsed time for one optimizer start by sample size, number of items and scoring model (log scales).}
+\label{fig:runtime}
+\end{figure}
+
+\section{Interpreting results}
+A loading is the contribution of a standardized transformed item, not the effect of a one-unit change in the original code, and should be read together with the score curve: a moderate loading can produce a large change between two categories separated by a large learned gap. Scores are identified only up to the training standardization, so comparisons across samples, groups or waves require one frozen map.
+
+The unpenalized index, the penalized objective and the variance ratio are different quantities and should be reported separately. Proposition~\ref{prop:expansion} implies that a large full index often reflects correlation; the shape index and the variance ratio indicate whether anything beyond correlation, or a low-variance contrast, is involved. A larger index also does not imply better recovery of a latent variable, as the synthetic example shows; when a latent trait is the target, a measurement model is the appropriate tool.
+
+Finally, the method detects dependence. It does not identify a unique latent trait, a number of groups, or polarization in the sense of \citet{esteban1994} or \citet{dimaggio1996}. A two-peaked projected density can be produced or accentuated by scoring, discretization and smoothing; claims about modality require an independently defined criterion such as the dip test \citep{hartigan1985}, sensitivity analyses and substantive checks of subgroup composition and response styles.
+
+A reproducible report should state the scoring model, penalties, frequency grid, seeds, category preprocessing, starts, convergence codes, gap parameters on bounds, the analytic sample size and exclusions, the split and the held-out test.
+
+\section{Summary and future work}
+\pkg{ordpp} treats the numerical representation of ordinal items as part of the exploratory search, against a reference that keeps the observed marginals and isolates dependence. The package makes category-score curves and frozen respondent projections first-class outputs, and provides held-out evaluation, a finite-sample-valid held-out test, a refitted test and stability summaries. Its pursued direction is a descriptive summary rather than an efficient detector: for weak, purely correlational dependence, testing along a principal-component direction was more powerful in our simulations. Its main limitations are local optimization with numerical gradients, the finite frequency grid, a single projection, the absence of missing-data handling and the lack of design-based inference for complex surveys. Planned work includes analytic gradients and optimization on the sphere \citep{absil2008}, several projections by deflation, use of the index within guided tours \citep{wickham2011}, and design-based resampling, which would enable applications to weighted survey data such as the European Social Survey.
+
+\section{Computational details}
+Results were obtained with R \Rversion{} and \pkg{ordpp}~0.1.0; comparators used \pkg{psych}~\verPsych{}, \pkg{Gifi}~\verGifi{} and \pkg{ordPens}~\verOrdPens{}. The full replication, \code{scripts/run\_all.R}, records \code{sessionInfo()} in \code{results/sessionInfo.txt}. The package and replication materials are available at \repoLink{} and archived at \zenodoLink{}.
+
+\bibliography{ordpp,packages}
+
+\address{Diego Andres Perez Ruiz\\
+  Department of Social Statistics\\
+  School of Social Sciences, University of Manchester\\
+  Manchester, United Kingdom\\}
+\email{\authorEmail}

@@ -1,0 +1,9 @@
+Bootstrap stability of an ordinal projection
+  B = 50 ; failed refits = 0  
+  median |cosine| with original direction = 0.999 
+ item estimate  mean     sd lower upper
+   N1    0.523 0.523 0.0239 0.470 0.567
+   N2    0.510 0.510 0.0245 0.469 0.546
+   N3    0.512 0.509 0.0238 0.471 0.553
+   N4    0.339 0.342 0.0259 0.300 0.385
+   N5    0.297 0.296 0.0256 0.248 0.340

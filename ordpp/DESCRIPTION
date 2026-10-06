@@ -1,0 +1,22 @@
+Package: ordpp
+Type: Package
+Title: Projection Pursuit with Monotone Scoring for Ordered Categorical Data
+Version: 0.1.0
+Date: 2026-10-06
+Authors@R: person("Diego Andres", "Perez Ruiz", role = c("aut", "cre"),
+    email = "diego.perezruiz@manchester.ac.uk")
+Description: Exploratory projection pursuit for ordered categorical
+    (ordinal) items. Monotone category scores and a projection direction are
+    estimated jointly by maximizing a weighted characteristic-function
+    discrepancy between the projected joint distribution and the projection
+    implied by item independence with the observed marginal distributions.
+    Fitted category dictionaries and loadings can be frozen and evaluated on
+    held-out data, with a finite-sample-valid held-out permutation test, a refitted
+    permutation test, a variance/shape decomposition of the index and
+    bootstrap stability summaries.
+License: GPL-3
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports: stats, graphics
+URL: https://github.com/GITHUB-USERNAME/ordpp
+BugReports: https://github.com/GITHUB-USERNAME/ordpp/issues

@@ -1,0 +1,4 @@
+Refitted permutation test (entire search repeated) 
+  H0: iid rows; mutual item independence 
+  n = 300 ; B = 99 ; index type = full 
+  statistic = 0.2121 ; p-value = 0.01 

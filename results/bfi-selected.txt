@@ -1,0 +1,7 @@
+Ordinal projection pursuit
+  n = 1347 ; scoring = item ; index type = full 
+  index = 0.1255; penalized objective = 0.1242; Var(Z)/Var(Z0) = 2.58 
+  convergence code = 0 ; starts = 5 ; gap parameters on bounds = 9 
+Loadings:
+   N1    N2    N3    N4    N5 
+0.523 0.510 0.512 0.339 0.297 
