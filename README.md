@@ -17,7 +17,7 @@ Development version from this repository (the package lives in the `ordpp/` fold
 
 ```r
 # install.packages("remotes")
-remotes::install_github("GITHUB-USERNAME/ordpp", subdir = "ordpp")
+remotes::install_github("dapr12/ordpp", subdir = "ordpp")
 ```
 
 ## Quick start

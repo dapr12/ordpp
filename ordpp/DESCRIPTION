@@ -18,5 +18,5 @@ License: GPL-3
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
 Imports: stats, graphics
-URL: https://github.com/GITHUB-USERNAME/ordpp
-BugReports: https://github.com/GITHUB-USERNAME/ordpp/issues
+URL: https://github.com/dapr12/ordpp
+BugReports: https://github.com/dapr12/ordpp/issues
